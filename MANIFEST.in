@@ -1,0 +1,11 @@
+# MANIFEST.in
+
+# Include the entire static folder (and everything within it) in the package
+recursive-include django_offload_with_logs/static *
+
+# If you have templates:
+recursive-include django_offload_with_logs/templates *
+
+# If you want to include other non-code files, do similarly:
+# recursive-include django_offload_with_logs/locale *
+# include LICENSE

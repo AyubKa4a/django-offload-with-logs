@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-offload-with-logs"
+version = "0.1.0"
+description = "..."
+readme = "README.md"
+authors = [
+  { name="Ayub Kara", email="a.kara@dojoon.com" }
+]
+license = { file = "LICENSE" }
+dependencies = ["Django>=2.2"]
+dynamic = ["classifiers"]
+
+[project.urls]
+homepage = "https://github.com/AyubKa4a/django-offload-with-logs"
