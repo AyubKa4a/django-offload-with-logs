@@ -30,7 +30,7 @@ MIDDLEWARE = [
     ...,
     'django.contrib.sessions.middleware.SessionMiddleware',  # ensures session support
     ...,
-    'django_offload_with_logs.middleware.AfterResponseMiddleware',
+    'django_offload_with_logs.middleware.OffloadMiddleware',
 ]
 ```
 4. Include the URLs in your main urls.py:

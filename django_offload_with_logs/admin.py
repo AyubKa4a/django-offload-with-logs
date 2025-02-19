@@ -1,10 +1,10 @@
 # django_offload_with_logs/admin.py
 
 from django.contrib import admin
-from .models import AfterResponseTask
+from .models import OffloadTask
 
-@admin.register(AfterResponseTask)
-class AfterResponseTaskAdmin(admin.ModelAdmin):
+@admin.register(OffloadTask)
+class OffloadTaskAdmin(admin.ModelAdmin):
     list_display = ('id', 'status', 'created_at', 'updated_at')
     list_filter = ('status', 'created_at')
     ordering = ('-created_at',)
