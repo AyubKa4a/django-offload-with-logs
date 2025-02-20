@@ -40,6 +40,8 @@ def enable(func):
             color_code=color_code
         )
 
+        kwargs['__task_id__'] = str(task.id)
+
         # If first arg is request, store user
         if args and hasattr(args[0], 'user'):
             req = args[0]

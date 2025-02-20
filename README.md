@@ -74,7 +74,7 @@ from django_offload_with_logs.decorators import enable
 import time
 
 @enable
-def do_something_long(request):
+def do_something_long(request,**kwargs):
     time.sleep(10)  # Simulate a 10-second task
     print("Finished the background job!")
 
@@ -90,15 +90,41 @@ def my_view(request):
 ```
 3. Once the HTTP response completes, do_something_long runs in the background, and a toast will appear on the frontend when it finishes.
 
+## Advanced Usage
+a function that further customize the success/fail messages based on the logic inside it and not based on the view that it's been called from , by retrieving the task_id from the kwargs:
+```bash
+@enable
+def my_big_task(request, data, **kwargs):
+    # retrieve the offloaded task_id automatically:
+    task_id = kwargs.get('__task_id__')  # a string like "0f5d476e-..."
+    print("Got a hidden task_id:", task_id)
+
+    # you can do your logic, and if you want to update success_message:
+    from .models import OffloadTask
+    try:
+        # some heavy logic
+        result_count = len(data)
+        # dynamic update
+        task = OffloadTask.objects.get(id=task_id)
+        task.success_message = f"Processed {result_count} items successfully!"
+        task.save(update_fields=['success_message'])
+    except Exception as e:
+        # or fail
+        OffloadTask.objects.filter(id=task_id).update(fail_message=str(e))
+        raise
+```
+
 ## Custom Messages & Durations 
-If you want different messages or timing:
+If you want different messages or timing or position or color, you can pass them as arguments to .offload(...):
 
 ```bash 
 do_something_long.offload(
     request,
     success_message="Task finished successfully!",
     fail_message="Oops! Something went wrong.",
-    message_duration=8000  # 8 seconds
+    message_duration=8000,  # 8 seconds
+    toast_position="top-right",
+    color_code="#AAFFCC",
 )
 
 ```
