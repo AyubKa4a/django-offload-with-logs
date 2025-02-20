@@ -1,5 +1,6 @@
+// django_offload_with_logs/static/django_offload_with_logs/offload_js.js
+
 (function () {
-    // Track active toast IDs to prevent duplicates
     let displayedTaskIds = new Set();
 
     if (typeof OFFLOAD_TASK_IDS === 'undefined') return;
@@ -8,7 +9,6 @@
 
     const POLL_INTERVAL = 3000;
 
-    // Poll the status for each task ID in the session
     function checkTasks() {
         OFFLOAD_TASK_IDS.forEach(function (taskId, idx) {
             fetch(OFFLOAD_BASE_URL + "task-status/" + taskId + "/")
@@ -16,34 +16,20 @@
                 .then(data => {
                     let status = data.status;
                     if (status === 'SUCCESS' || status === 'FAILURE' || status === 'NOT_FOUND') {
+                        
+                        // Pull out messages
+                        let successMsg = data.success_message || 'Task finished successfully.';
+                        let failMsg = data.fail_message || 'Task failed or not found.';
+                        let duration = data.message_duration || 4000;
+                        let colorCode = data.color_code; // might be null
+                        let position = data.toast_position; // might be null
 
-                        // Defaults
-                        let message = 'The task finished successfully.';
-                        let duration = 4000; // default auto-close time
+                        let message = (status === 'SUCCESS') ? successMsg : failMsg;
 
-                        // If not success, use a fail message
-                        if (status !== 'SUCCESS') {
-                            message = 'The task failed or was not found.';
-                        }
+                        showOffloadToast(taskId, status, message, duration, position, colorCode);
 
-                        // Custom messages from backend?
-                        if (status === 'SUCCESS' && data.success_message) {
-                            message = data.success_message;
-                        } else if ((status === 'FAILURE' || status === 'NOT_FOUND') && data.fail_message) {
-                            message = data.fail_message;
-                        }
-
-                        if (data.message_duration) {
-                            duration = data.message_duration;
-                        }
-
-                        // Show the toast (with ID to prevent duplicates)
-                        showOffloadToast(taskId, status, message, duration);
-
-                        // Remove taskId from the array after scheduling
+                        // remove from array
                         OFFLOAD_TASK_IDS.splice(idx, 1);
-
-                        // Update server session
                         updateSessionTasks(OFFLOAD_TASK_IDS);
                     }
                 })
@@ -53,12 +39,7 @@
 
     setInterval(checkTasks, POLL_INTERVAL);
 
-    /**
-     * Create & show a toast (skipping duplicates),
-     * hover pauses auto-close, but forced fallback ensures it won't stay forever.
-     */
-    function showOffloadToast(taskId, status, message, duration) {
-        // 1) Avoid duplicates for the same task
+    function showOffloadToast(taskId, status, message, duration, position, colorCode) {
         if (displayedTaskIds.has(taskId)) {
             return;
         }
@@ -66,52 +47,68 @@
 
         injectToastCSS();
 
-        // 2) Ensure container for stacking
-        let container = document.getElementById('offload-toast-container');
+        // Decide container position
+        // If user didn't pass position, default to 'top-right'
+        let finalPosition = position || 'top-right';
+        let containerId = 'offload-toast-container-' + finalPosition;
+
+        let container = document.getElementById(containerId);
         if (!container) {
             container = document.createElement('div');
-            container.id = 'offload-toast-container';
+            container.id = containerId;
             container.style.position = 'fixed';
-            container.style.top = '20px';
-            container.style.right = '20px';
             container.style.zIndex = '9999';
             container.style.display = 'flex';
             container.style.flexDirection = 'column';
             container.style.gap = '10px';
+
+            // Basic logic for position
+            if (finalPosition === 'bottom-left') {
+                container.style.bottom = '20px';
+                container.style.left = '20px';
+            } else if (finalPosition === 'bottom-right') {
+                container.style.bottom = '20px';
+                container.style.right = '20px';
+            } else if (finalPosition === 'top-left') {
+                container.style.top = '20px';
+                container.style.left = '20px';
+            } else {
+                // Default top-right
+                container.style.top = '20px';
+                container.style.right = '20px';
+            }
+
             document.body.appendChild(container);
         }
 
-        // 3) Pick success/failure styling
-        let backgroundColor = '#4CAF50'; // green
-        if (status !== 'SUCCESS') {
-            backgroundColor = '#f44336'; // red
-        }
+        // Decide color
+        let defaultColor = (status === 'SUCCESS') ? '#4CAF50' : '#f44336';
+        let backgroundColor = colorCode || defaultColor;
 
-        // 4) Build the toast element
+        // Build the toast
         const toast = document.createElement('div');
         toast.className = 'offload-toast';
         toast.dataset.taskId = taskId;
         toast.style.backgroundColor = backgroundColor;
-        toast.style.padding = '16px 50px 16px 16px'; // extra right padding for close button
+        toast.style.padding = '16px 50px 16px 16px';
         toast.style.width = '360px';
         toast.style.minHeight = '60px';
         toast.style.color = '#fff';
         toast.style.fontSize = '16px';
         toast.style.borderRadius = '6px';
         toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-        toast.style.position = 'relative'; // for absolutely positioned close button
+        toast.style.position = 'relative';
         toast.style.animation = 'fadeInToast 0.3s ease forwards';
         toast.textContent = message;
 
-        // 4a) Insert into container
         container.appendChild(toast);
 
-        // 5) Hover logic to pause auto-close
+        // Hover to pause
         let hover = false;
-        toast.addEventListener('mouseenter', () => (hover = true));
-        toast.addEventListener('mouseleave', () => (hover = false));
+        toast.addEventListener('mouseenter', () => hover = true);
+        toast.addEventListener('mouseleave', () => hover = false);
 
-        // 6) Add close button in top-right
+        // Close button
         const closeBtn = document.createElement('button');
         closeBtn.innerHTML = '&times;';
         closeBtn.setAttribute('aria-label', 'Close');
@@ -132,36 +129,29 @@
         });
         toast.appendChild(closeBtn);
 
-        // 7) Main auto-close after "duration" ms if not hovered
+        // Auto-close
         let autoCloseTimer = setTimeout(() => {
             if (!hover) {
                 removeToast(toast);
             }
-        }, duration || 4000);
+        }, duration);
 
-        // 8) Fallback forced close:
-        // If user hovers indefinitely, toast auto-hides anyway after 20s
+        // Fallback forced close after extra 16s
         let forcedTimer = setTimeout(() => {
             removeToast(toast);
-        }, (duration || 4000) + 16000); // 16s buffer
+        }, duration + 16000);
 
-        // Store timers on toast element
         toast.dataset.autoCloseTimer = autoCloseTimer;
         toast.dataset.forcedTimer = forcedTimer;
     }
 
-    /**
-     * Remove toast with fadeOut, free the task ID, clear timers
-     */
     function removeToast(toast) {
-        // fade out
         toast.style.animation = 'fadeOutToast 0.3s ease forwards';
 
         const taskId = toast.dataset.taskId;
         const autoCloseTimer = toast.dataset.autoCloseTimer;
         const forcedTimer = toast.dataset.forcedTimer;
 
-        // Clear any timers
         if (autoCloseTimer) {
             clearTimeout(autoCloseTimer);
         }
@@ -170,23 +160,17 @@
         }
 
         setTimeout(() => {
-            // Remove from DOM
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
             }
-            // Free up the ID
             if (taskId) {
                 displayedTaskIds.delete(taskId);
             }
         }, 300);
     }
 
-    /**
-     * Inject fade in/out keyframes once
-     */
     function injectToastCSS() {
         if (document.getElementById('toast-animation-styles')) return;
-
         const style = document.createElement('style');
         style.id = 'toast-animation-styles';
         style.innerHTML = `
@@ -205,9 +189,6 @@
         document.head.appendChild(style);
     }
 
-    /**
-     * Update server session with current task IDs
-     */
     function updateSessionTasks(newTaskIds) {
         fetch(OFFLOAD_BASE_URL + 'clear-tasks/', {
             method: 'POST',
@@ -217,18 +198,15 @@
             },
             body: JSON.stringify({ task_ids: newTaskIds })
         })
-            .then(r => r.json())
-            .then(data => {
-                console.log("Offload tasks updated:", data);
-            })
-            .catch(err => {
-                console.error("Error updating offload tasks:", err);
-            });
+        .then(r => r.json())
+        .then(data => {
+            console.log("Offload tasks updated:", data);
+        })
+        .catch(err => {
+            console.error("Error updating offload tasks:", err);
+        });
     }
 
-    /**
-     * Standard Django CSRF token retrieval
-     */
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -243,4 +221,5 @@
         }
         return cookieValue;
     }
+
 })();

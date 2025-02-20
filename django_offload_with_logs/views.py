@@ -1,4 +1,5 @@
 # django_offload_with_logs/views.py
+
 import json
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
@@ -11,7 +12,9 @@ def task_status_view(request, task_id):
             "status": task.status,
             "success_message": task.success_message,
             "fail_message": task.fail_message,
-            "message_duration": task.message_duration
+            "message_duration": task.message_duration,
+            "toast_position": task.toast_position,
+            "color_code": task.color_code,
         })
     except OffloadTask.DoesNotExist:
         return JsonResponse({"status": "NOT_FOUND"}, status=404)

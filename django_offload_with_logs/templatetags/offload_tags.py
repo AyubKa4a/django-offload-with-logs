@@ -1,4 +1,5 @@
 # django_offload_with_logs/templatetags/offload_tags.py
+
 from django import template
 from django.urls import reverse
 from django.templatetags.static import static
@@ -13,9 +14,11 @@ def offload_js(context):
     if not request:
         return ''
 
+    # We'll read task IDs from session
     task_ids = request.session.get('offload_task_ids', [])
     task_ids_json = json.dumps(task_ids)
 
+    # Build the base URL for 'offload_status'
     base_url = reverse('offload_status', kwargs={'task_id': '00000000-0000-0000-0000-000000000000'})
     base_url = base_url.replace('task-status/00000000-0000-0000-0000-000000000000/', '')
 

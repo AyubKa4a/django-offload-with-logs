@@ -1,15 +1,19 @@
 # django_offload_with_logs/signals.py
+
 import threading
 import logging
 from django.core.signals import request_finished
 from django.conf import settings
+
 from .store import function_queue
 from .models import OffloadTask
 
 logger = logging.getLogger(__name__)
+
 OFFLOAD_RUN_ASYNC = getattr(settings, 'OFFLOAD_RUN_ASYNC', True)
 
 def run_func(func, task_id, *args, **kwargs):
+    # Mark as running
     task = OffloadTask.objects.get(pk=task_id)
     task.mark_running()
     try:
